@@ -1,0 +1,34 @@
+[
+  {
+    "q": "why is checkout returning 500",
+    "must_cite": ["#41"]
+  },
+  {
+    "q": "empty promo code crash",
+    "must_cite": ["#41", "#12"]
+  },
+  {
+    "q": "duplicate stripe invoices incident",
+    "must_cite": ["#38"]
+  },
+  {
+    "q": "are refunds in the csv export yet",
+    "must_cite": ["#29"]
+  },
+  {
+    "q": "what is blocking the checkout p95 goal",
+    "must_cite": ["#22"]
+  },
+  {
+    "q": "can we promise EU VAT this quarter",
+    "must_cite": ["#18"]
+  },
+  {
+    "q": "what changed this quarter and what are the main risks",
+    "must_cite": ["#41", "#38"]
+  },
+  {
+    "q": "standup notes from august",
+    "must_cite": ["note-standup-0819"]
+  }
+]
