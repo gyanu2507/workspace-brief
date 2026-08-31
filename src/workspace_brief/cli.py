@@ -1,5 +1,9 @@
 import argparse
 import sys
+from pathlib import Path
+
+from workspace_brief.agent import run
+from workspace_brief.trace import write_trace
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,6 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="default",
         help="memory session id, so follow-ups can stick",
     )
+    p.add_argument(
+        "--trace-dir",
+        default="traces",
+        help="where to write the json trace for this run",
+    )
     return p
 
 
@@ -31,6 +40,14 @@ def main(argv=None) -> int:
     if args.source == "github" and not args.repo:
         print("brief: --repo owner/name is required with --source github", file=sys.stderr)
         return 2
-    print(f"[{args.source}] {args.question}")
-    print("(agent not hooked up)")
+
+    result = run(
+        args.question,
+        source=args.source,
+        repo=args.repo,
+        session=args.session,
+    )
+    path = write_trace(result, Path(args.trace_dir))
+    print(result["answer"])
+    print(f"\ntrace: {path}", file=sys.stderr)
     return 0
