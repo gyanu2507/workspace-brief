@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from workspace_brief.planner import plan
 from workspace_brief.sources import get_source
+from workspace_brief import memory as mem
 
 MAX_CALLS = 8
 
@@ -53,7 +54,29 @@ def synthesize(question: str, evidence: list[dict]) -> tuple[str, list[str]]:
     return answer, cites
 
 
-def run(question: str, source: str = "fixture", repo: str | None = None) -> dict:
+def _maybe_remember(question: str, session: str, path) -> str | None:
+    raw = question.strip()
+    low = raw.lower()
+    for prefix in ("remember that ", "remember ", "note that "):
+        if low.startswith(prefix):
+            fact = raw[len(prefix) :].strip()
+            if mem.remember(session, fact, path):
+                return fact
+            return fact
+    return None
+
+
+def run(
+    question: str,
+    source: str = "fixture",
+    repo: str | None = None,
+    session: str = "default",
+    memory_path=None,
+) -> dict:
+    written = _maybe_remember(question, session, memory_path)
+    known = mem.facts(session, memory_path)
+    recent = mem.recent_turns(session, path=memory_path)
+
     src = get_source(source, repo)
     planned = plan(question)
 
@@ -100,6 +123,12 @@ def run(question: str, source: str = "fixture", repo: str | None = None) -> dict
             calls.append({"tool": "list_commits", "query": None, "error": str(e), "hits": 0})
 
     answer, cites = synthesize(question, evidence)
+    if known:
+        answer += "\n\nUsing long-term notes: " + "; ".join(known)
+
+    mem.add_turn(session, "user", question, memory_path)
+    mem.add_turn(session, "assistant", answer, memory_path)
+
     return {
         "question": question,
         "rewrite": planned["rewrite"],
@@ -110,4 +139,7 @@ def run(question: str, source: str = "fixture", repo: str | None = None) -> dict
         "answer": answer,
         "source": src.kind,
         "repo": src.repo,
+        "memory_used": known,
+        "memory_written": [written] if written else [],
+        "recent_turns": len(recent),
     }
