@@ -1,0 +1,38 @@
+[
+  {
+    "sha": "a1c3e02",
+    "date": "2026-08-20",
+    "author": "meera",
+    "message": "promo: treat empty string as missing"
+  },
+  {
+    "sha": "9bf10aa",
+    "date": "2026-08-14",
+    "author": "arjun",
+    "message": "webhooks: start processed_events table"
+  },
+  {
+    "sha": "44d0c1b",
+    "date": "2026-07-21",
+    "author": "arjun",
+    "message": "export: add refund rows"
+  },
+  {
+    "sha": "c88e1f4",
+    "date": "2026-06-19",
+    "author": "priya",
+    "message": "revert checkout timeout to 8s"
+  },
+  {
+    "sha": "e2a91d0",
+    "date": "2026-06-18",
+    "author": "priya",
+    "message": "drop checkout timeout to 3s"
+  },
+  {
+    "sha": "11ab902",
+    "date": "2026-06-02",
+    "author": "priya",
+    "message": "notes: q3 checkout latency goal"
+  }
+]

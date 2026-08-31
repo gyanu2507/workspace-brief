@@ -1,0 +1,56 @@
+[
+  {
+    "number": 41,
+    "title": "Empty promo code 500s checkout",
+    "state": "open",
+    "labels": ["bug", "p0"],
+    "author": "meera",
+    "updated": "2026-08-19",
+    "body": "POST /checkout dies with 500 if promo_code is \"\". We used to treat blank as no promo. Staging repro: add item, leave promo field empty (not omitted), pay.\n\nStack is in the thread. Happened twice for enterprise trial accounts this week."
+  },
+  {
+    "number": 38,
+    "title": "Webhook retries stampede Stripe",
+    "state": "open",
+    "labels": ["bug", "p1"],
+    "author": "arjun",
+    "updated": "2026-08-12",
+    "body": "invoice.paid handler isn't idempotent. Stripe retry + our own 3x retry = 6 charges on a slow webhook. Need a processed_events table keyed on event id.\n\nSaw this in the 7 Aug incident, ~40 duplicate invoices."
+  },
+  {
+    "number": 33,
+    "title": "Export CSV silently drops refunds",
+    "state": "closed",
+    "labels": ["bug"],
+    "author": "meera",
+    "updated": "2026-07-28",
+    "body": "Finance noticed Q2 export didn't include refunds after 12 Jun. Fixed in #29. Left this open until they signed off — they did on 28 Jul."
+  },
+  {
+    "number": 29,
+    "title": "Add refunds to the billing export",
+    "state": "closed",
+    "labels": ["enhancement"],
+    "author": "arjun",
+    "updated": "2026-07-21",
+    "body": "Shipped. Refunds show as negative rows with the original invoice id in column G."
+  },
+  {
+    "number": 22,
+    "title": "Q3 goal: cut checkout p95 under 400ms",
+    "state": "open",
+    "labels": ["goal"],
+    "author": "priya",
+    "updated": "2026-06-04",
+    "body": "We're at ~620ms p95 on checkout. Biggest chunk is the promo service (sync HTTP). Plan was to cache by code, but empty-string bug (#41) should land first or we cache the bad path."
+  },
+  {
+    "number": 18,
+    "title": "Document VAT for EU self-serve",
+    "state": "open",
+    "labels": ["docs"],
+    "author": "priya",
+    "updated": "2026-08-02",
+    "body": "Legal wants a one-pager before we turn on EU. Blocked on tax vendor pick — still Stripe Tax vs. Avalara, no decision."
+  }
+]

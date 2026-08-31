@@ -1,0 +1,20 @@
+[
+  {
+    "id": "note-q3-plan",
+    "title": "Q3 plan (internal)",
+    "updated": "2026-06-04",
+    "body": "Priority order from Priya: 1) checkout p95, 2) webhook duplicates, 3) EU VAT docs.\n\nCheckout is still blocked on the empty promo crash — cache won't go in until that's gone.\n\nEU is not this quarter unless legal unblocks the vendor."
+  },
+  {
+    "id": "note-aug-11-incident",
+    "title": "Incident 11 Aug — duplicate invoices",
+    "updated": "2026-08-11",
+    "body": "Stripe retried invoice.paid, we retried too. ~40 duplicates, finance reversed them by hand.\n\nAction: idempotency key on event id before any other webhook work. Arjun owns it (#38, PR 14).\n\nCustomer-facing: two enterprise trials complained. Not public yet."
+  },
+  {
+    "id": "note-standup-0819",
+    "title": "Standup 19 Aug",
+    "updated": "2026-08-19",
+    "body": "Meera: promo blank crash has a PR (#12), waiting on review.\nArjun: webhook table exists, not hooked up.\nPriya: still no VAT vendor. Don't promise EU dates."
+  }
+]
