@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "workspace-brief"
 version = "0.1.0"
 description = "Ask a live GitHub workspace what changed — with a planner, citations, and a trace."
+readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Gyanu Mayank" }]
 dependencies = [
