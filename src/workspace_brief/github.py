@@ -4,7 +4,7 @@ import os
 
 import httpx
 
-from workspace_brief.fixture import _rank
+from workspace_brief.retrieve import rank
 
 API = "https://api.github.com"
 
@@ -53,7 +53,7 @@ def search_issues(repo: str, query: str, n: int = 5) -> list:
     owner, name = repo.split("/", 1)
     raw = _get(f"/repos/{owner}/{name}/issues", params={"state": "all", "per_page": 50})
     items = [_issue_shape(x) for x in raw if "pull_request" not in x]
-    return _rank(query, items, n)
+    return rank(query, items, n)
 
 
 def get_issue(repo: str, number: int) -> dict | None:
@@ -83,7 +83,7 @@ def search_pulls(repo: str, query: str, n: int = 5) -> list:
                 "url": x.get("html_url"),
             }
         )
-    return _rank(query, items, n)
+    return rank(query, items, n)
 
 
 def list_commits(repo: str, n: int = 8) -> list:

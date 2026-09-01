@@ -1,7 +1,6 @@
-import json
 from pathlib import Path
 
-from workspace_brief.fixture import get_issue, search_issues, search_notes
+from workspace_brief.fixture import get_issue, get_note, search_issues, search_notes
 
 
 def test_promo_issue_is_41():
@@ -12,6 +11,11 @@ def test_promo_issue_is_41():
 def test_get_issue():
     assert get_issue(38)["title"].lower().startswith("webhook")
     assert get_issue(9999) is None
+
+
+def test_get_note():
+    assert get_note("note-q3-plan")["title"].startswith("Q3")
+    assert get_note("missing") is None
 
 
 def test_incident_note():

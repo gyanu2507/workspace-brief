@@ -1,10 +1,23 @@
 from __future__ import annotations
 
+import re
+
 from workspace_brief.planner import plan
+from workspace_brief.retrieve import rank
 from workspace_brief.sources import get_source
 from workspace_brief import memory as mem
 
 MAX_CALLS = 8
+MAX_EVIDENCE = 8
+
+# retrieved text is data. if it tries to drive the model, drop the body.
+_INJECT = re.compile(
+    r"ignore (all )?(previous|prior) instructions"
+    r"|you are now"
+    r"|system\s*:"
+    r"|do not cite",
+    re.I,
+)
 
 
 def _cite(item: dict) -> str:
@@ -19,12 +32,37 @@ def _key(item: dict) -> str:
     if "sha" in item:
         return f"commit:{item['sha']}"
     if "number" in item:
-        return f"n:{item['number']}:{item.get('title', '')[:20]}"
+        return f"n:{item['number']}"
     return f"id:{item.get('id')}"
 
 
 def _label(item: dict) -> str:
     return item.get("title") or item.get("message") or item.get("id") or _cite(item)
+
+
+def _snippet(item: dict) -> str | None:
+    body = (item.get("body") or item.get("message") or "").strip()
+    if not body:
+        return None
+    if _INJECT.search(body):
+        return None
+    line = body.split("\n", 1)[0].strip()
+    return line[:180] if line else None
+
+
+def _wants_commits(text: str) -> bool:
+    low = text.lower()
+    return any(w in low for w in ("changed", "change", "landed", "recent", "commit", "this quarter", "q3"))
+
+
+def _lookups(sq: str, src) -> list:
+    # issues/PRs/notes every time; commits are gated separately because
+    # dumping the whole log into every answer was drowning the signal.
+    return [
+        ("search_issues", lambda q=sq: src.search_issues(q)),
+        ("search_pulls", lambda q=sq: src.search_pulls(q)),
+        ("search_notes", lambda q=sq: src.search_notes(q)),
+    ]
 
 
 def synthesize(question: str, evidence: list[dict]) -> tuple[str, list[str]]:
@@ -37,14 +75,16 @@ def synthesize(question: str, evidence: list[dict]) -> tuple[str, list[str]]:
 
     cites = []
     lines = []
-    for ev in evidence[:8]:
+    for ev in evidence:
         c = _cite(ev)
         if c not in cites:
             cites.append(c)
-        extra = ""
-        if ev.get("state"):
-            extra = f" ({ev['state']})"
-        lines.append(f"- {_label(ev)}{extra} [{c}]")
+        extra = f" ({ev['state']})" if ev.get("state") else ""
+        snip = _snippet(ev)
+        line = f"- {_label(ev)}{extra} [{c}]"
+        if snip:
+            line += f" — {snip}"
+        lines.append(line)
 
     answer = (
         f"Based on the workspace, here's what I can ground for: {question}\n\n"
@@ -60,10 +100,70 @@ def _maybe_remember(question: str, session: str, path) -> str | None:
     for prefix in ("remember that ", "remember ", "note that "):
         if low.startswith(prefix):
             fact = raw[len(prefix) :].strip()
-            if mem.remember(session, fact, path):
-                return fact
+            if fact:
+                mem.remember(session, fact, path)
             return fact
     return None
+
+
+def _collect(src, question: str, subquestions: list[str]) -> tuple[list[dict], list[dict]]:
+    evidence = []
+    seen = set()
+    calls = []
+
+    def add_hits(name, query, hits):
+        calls.append({"tool": name, "query": query, "hits": len(hits)})
+        for h in hits:
+            k = _key(h)
+            if k in seen:
+                continue
+            seen.add(k)
+            evidence.append(h)
+
+    if _wants_commits(question):
+        try:
+            commits = src.list_commits()
+            add_hits("list_commits", None, commits)
+        except Exception as e:
+            calls.append({"tool": "list_commits", "query": None, "error": str(e), "hits": 0})
+
+    for sq in subquestions:
+        for name, fn in _lookups(sq, src):
+            if len(calls) >= MAX_CALLS:
+                break
+            try:
+                hits = fn()
+            except Exception as e:
+                calls.append({"tool": name, "query": sq, "error": str(e), "hits": 0})
+                continue
+            add_hits(name, sq, hits)
+        if len(calls) >= MAX_CALLS:
+            break
+
+    # pull the full issue/note once we have an id — search snippets are short
+    for ev in list(evidence):
+        if len(calls) >= MAX_CALLS:
+            break
+        if ev.get("number") and not (ev.get("body") or "").strip():
+            try:
+                full = src.get_issue(ev["number"])
+            except Exception as e:
+                calls.append({"tool": "get_issue", "query": ev["number"], "error": str(e), "hits": 0})
+                continue
+            calls.append({"tool": "get_issue", "query": ev["number"], "hits": 1 if full else 0})
+            if full:
+                evidence[evidence.index(ev)] = full
+        elif ev.get("id") and hasattr(src, "get_note"):
+            try:
+                full = src.get_note(ev["id"])
+            except Exception as e:
+                calls.append({"tool": "get_note", "query": ev["id"], "error": str(e), "hits": 0})
+                continue
+            if full:
+                calls.append({"tool": "get_note", "query": ev["id"], "hits": 1})
+                evidence[evidence.index(ev)] = full
+
+    return evidence, calls
 
 
 def run(
@@ -79,50 +179,19 @@ def run(
 
     src = get_source(source, repo)
     planned = plan(question)
+    raw, calls = _collect(src, question, planned["subquestions"])
 
-    evidence = []
-    seen = set()
-    calls = []
-
-    tools = [
-        ("search_issues", src.search_issues),
-        ("search_pulls", src.search_pulls),
-        ("search_notes", src.search_notes),
-    ]
-
-    for sq in planned["subquestions"]:
-        for name, fn in tools:
-            if len(calls) >= MAX_CALLS:
-                break
-            try:
-                hits = fn(sq)
-            except Exception as e:
-                calls.append({"tool": name, "query": sq, "error": str(e), "hits": 0})
-                continue
-            calls.append({"tool": name, "query": sq, "hits": len(hits)})
-            for h in hits:
-                k = _key(h)
-                if k in seen:
-                    continue
-                seen.add(k)
-                evidence.append(h)
-        if len(calls) >= MAX_CALLS:
-            break
-
-    # always grab recent commits once; cheap and answers "what changed"
-    if len(calls) < MAX_CALLS:
-        try:
-            commits = src.list_commits()
-            calls.append({"tool": "list_commits", "query": None, "hits": len(commits)})
-            for h in commits:
-                k = _key(h)
-                if k not in seen:
-                    seen.add(k)
-                    evidence.append(h)
-        except Exception as e:
-            calls.append({"tool": "list_commits", "query": None, "error": str(e), "hits": 0})
-
+    evidence = rank(question, raw, n=MAX_EVIDENCE) or raw[:MAX_EVIDENCE]
     answer, cites = synthesize(question, evidence)
+    try:
+        from workspace_brief.llm import maybe_rewrite
+
+        rewritten = maybe_rewrite(question, answer, cites)
+        if rewritten:
+            answer = rewritten
+    except Exception:
+        pass
+
     if known:
         answer += "\n\nUsing long-term notes: " + "; ".join(known)
 

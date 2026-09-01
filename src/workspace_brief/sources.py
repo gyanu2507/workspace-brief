@@ -23,6 +23,9 @@ class FixtureSource:
     def search_notes(self, q, n=5):
         return fixture.search_notes(q, n)
 
+    def get_note(self, note_id):
+        return fixture.get_note(note_id)
+
 
 class GithubSource:
     kind = "github"
@@ -44,6 +47,9 @@ class GithubSource:
 
     def search_notes(self, q, n=5):
         return gh.search_notes(self.repo, q, n)
+
+    def get_note(self, note_id):
+        return None
 
 
 def get_source(kind: str, repo: str | None = None):

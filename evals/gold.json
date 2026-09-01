@@ -30,5 +30,33 @@
   {
     "q": "standup notes from august",
     "must_cite": ["note-standup-0819"]
+  },
+  {
+    "q": "which PR treats blank promo as missing",
+    "must_cite": ["#12"]
+  },
+  {
+    "q": "processed_events table for stripe",
+    "must_cite": ["#14"]
+  },
+  {
+    "q": "incident 11 august duplicate invoices",
+    "must_cite": ["note-aug-11-incident"]
+  },
+  {
+    "q": "q3 priority order from priya",
+    "must_cite": ["note-q3-plan"]
+  },
+  {
+    "q": "checkout timeout 3s was reverted",
+    "must_cite": ["#7"]
+  },
+  {
+    "q": "don't promise EU dates",
+    "must_cite": ["note-standup-0819"]
+  },
+  {
+    "q": "p95 still around 620ms",
+    "must_cite": ["#22"]
   }
 ]
