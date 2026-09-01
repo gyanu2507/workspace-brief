@@ -1,0 +1,31 @@
+services:
+  brief:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      BRIEF_SOURCE: ${BRIEF_SOURCE:-fixture}
+      BRIEF_REPO: ${BRIEF_REPO:-}
+      BRIEF_MEMORY_PATH: /data/memory.sqlite
+      BRIEF_TRACE_DIR: /data/traces
+      BRIEF_LOG_LEVEL: ${BRIEF_LOG_LEVEL:-INFO}
+    volumes:
+      - brief-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')",
+        ]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  brief-data:

@@ -1,22 +1,25 @@
 """stdio MCP wrapping the same tools the CLI uses.
 
-Run: python -m workspace_brief.mcp_server
-Optional env: BRIEF_SOURCE=github BRIEF_REPO=owner/name
+Speaks the MCP transport (Content-Length headers). Newline JSON still
+works for tests and `echo '{...}' | python -m workspace_brief.mcp_server`.
+
+  python -m workspace_brief.mcp_server
+
+BRIEF_SOURCE=github BRIEF_REPO=owner/name for a live repo.
 """
 from __future__ import annotations
 
 import json
 import sys
 
+from workspace_brief.config import settings, setup_logging
+from workspace_brief.redact import redact
 from workspace_brief.sources import get_source
 
 
 def _src():
-    import os
-
-    kind = os.environ.get("BRIEF_SOURCE", "fixture")
-    repo = os.environ.get("BRIEF_REPO")
-    return get_source(kind, repo)
+    cfg = settings()
+    return get_source(cfg.default_source, cfg.default_repo)
 
 
 TOOLS = [
@@ -92,13 +95,15 @@ def handle(msg: dict) -> dict | None:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "workspace-brief", "version": "0.1.0"},
+                "serverInfo": {"name": "workspace-brief", "version": "0.2.0"},
             },
         )
     if method == "notifications/initialized":
         return None
     if method == "tools/list":
         return _result(mid, {"tools": TOOLS})
+    if method == "ping":
+        return _result(mid, {})
     if method == "tools/call":
         params = msg.get("params") or {}
         name = params.get("name")
@@ -113,7 +118,7 @@ def handle(msg: dict) -> dict | None:
         except Exception as e:
             return _result(
                 mid,
-                {"content": [{"type": "text", "text": str(e)}], "isError": True},
+                {"content": [{"type": "text", "text": redact(str(e))}], "isError": True},
             )
     if mid is None:
         return None
@@ -124,19 +129,52 @@ def handle(msg: dict) -> dict | None:
     }
 
 
-def main() -> None:
-    for line in sys.stdin:
-        line = line.strip()
+def encode_message(msg: dict) -> bytes:
+    body = json.dumps(msg, separators=(",", ":")).encode("utf-8")
+    header = f"Content-Length: {len(body)}\r\n\r\n".encode("ascii")
+    return header + body
+
+
+def read_message(buf) -> dict | None:
+    """Read one JSON-RPC message. Accepts MCP framing or a single JSON line."""
+    header_bytes = b""
+    while True:
+        line = buf.readline()
         if not line:
-            continue
+            return None
+        if line.startswith(b"{") or line.startswith(b"["):
+            return json.loads(line)
+        if line in (b"\r\n", b"\n"):
+            break
+        header_bytes += line
+    headers = {}
+    for raw in header_bytes.decode("ascii", errors="replace").splitlines():
+        if ":" in raw:
+            k, v = raw.split(":", 1)
+            headers[k.strip().lower()] = v.strip()
+    n = int(headers.get("content-length") or 0)
+    if n <= 0:
+        return None
+    body = buf.read(n)
+    if not body:
+        return None
+    return json.loads(body.decode("utf-8"))
+
+
+def main() -> None:
+    setup_logging()
+    stdin = sys.stdin.buffer
+    while True:
         try:
-            msg = json.loads(line)
+            msg = read_message(stdin)
         except json.JSONDecodeError:
             continue
+        if msg is None:
+            break
         out = handle(msg)
         if out is not None:
-            sys.stdout.write(json.dumps(out) + "\n")
-            sys.stdout.flush()
+            sys.stdout.buffer.write(encode_message(out))
+            sys.stdout.buffer.flush()
 
 
 if __name__ == "__main__":

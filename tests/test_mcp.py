@@ -1,4 +1,6 @@
-from workspace_brief.mcp_server import handle
+from io import BytesIO
+
+from workspace_brief.mcp_server import encode_message, handle, read_message
 
 
 def test_initialize():
@@ -27,3 +29,15 @@ def test_call_search_issues():
 
 def test_initialized_is_silent():
     assert handle({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
+
+
+def test_content_length_roundtrip():
+    msg = {"jsonrpc": "2.0", "id": 9, "method": "ping"}
+    raw = encode_message(msg)
+    assert b"Content-Length:" in raw
+    assert read_message(BytesIO(raw)) == msg
+
+
+def test_newline_json_still_accepted():
+    got = read_message(BytesIO(b'{"jsonrpc":"2.0","id":1,"method":"ping"}\n'))
+    assert got["id"] == 1

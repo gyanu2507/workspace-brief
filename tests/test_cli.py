@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from workspace_brief.cli import main
+from workspace_brief.github import GithubError
 
 
 def test_help_without_question():
@@ -9,6 +10,14 @@ def test_help_without_question():
 
 def test_github_needs_repo():
     assert main(["--source", "github", "anything"]) == 2
+
+
+def test_github_error_exits_3(monkeypatch):
+    def boom(*args, **kwargs):
+        raise GithubError("github 502")
+
+    monkeypatch.setattr("workspace_brief.cli.run", boom)
+    assert main(["--source", "github", "--repo", "acme/app", "what landed"]) == 3
 
 
 def test_fixture_run(tmp_path, monkeypatch):

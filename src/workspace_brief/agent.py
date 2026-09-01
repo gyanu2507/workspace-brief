@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from workspace_brief.planner import plan
+from workspace_brief.redact import redact
 from workspace_brief.retrieve import rank
 from workspace_brief.sources import get_source
 from workspace_brief import memory as mem
@@ -125,7 +126,7 @@ def _collect(src, question: str, subquestions: list[str]) -> tuple[list[dict], l
             commits = src.list_commits()
             add_hits("list_commits", None, commits)
         except Exception as e:
-            calls.append({"tool": "list_commits", "query": None, "error": str(e), "hits": 0})
+            calls.append({"tool": "list_commits", "query": None, "error": redact(str(e)), "hits": 0})
 
     for sq in subquestions:
         for name, fn in _lookups(sq, src):
@@ -134,7 +135,7 @@ def _collect(src, question: str, subquestions: list[str]) -> tuple[list[dict], l
             try:
                 hits = fn()
             except Exception as e:
-                calls.append({"tool": name, "query": sq, "error": str(e), "hits": 0})
+                calls.append({"tool": name, "query": sq, "error": redact(str(e)), "hits": 0})
                 continue
             add_hits(name, sq, hits)
         if len(calls) >= MAX_CALLS:
@@ -148,7 +149,7 @@ def _collect(src, question: str, subquestions: list[str]) -> tuple[list[dict], l
             try:
                 full = src.get_issue(ev["number"])
             except Exception as e:
-                calls.append({"tool": "get_issue", "query": ev["number"], "error": str(e), "hits": 0})
+                calls.append({"tool": "get_issue", "query": ev["number"], "error": redact(str(e)), "hits": 0})
                 continue
             calls.append({"tool": "get_issue", "query": ev["number"], "hits": 1 if full else 0})
             if full:
@@ -157,7 +158,7 @@ def _collect(src, question: str, subquestions: list[str]) -> tuple[list[dict], l
             try:
                 full = src.get_note(ev["id"])
             except Exception as e:
-                calls.append({"tool": "get_note", "query": ev["id"], "error": str(e), "hits": 0})
+                calls.append({"tool": "get_note", "query": ev["id"], "error": redact(str(e)), "hits": 0})
                 continue
             if full:
                 calls.append({"tool": "get_note", "query": ev["id"], "hits": 1})

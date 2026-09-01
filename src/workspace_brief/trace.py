@@ -4,7 +4,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-TRACE_DIR = Path("traces")
+from workspace_brief.config import settings
+from workspace_brief.redact import redact_obj
 
 
 def _snip(ev: dict) -> dict:
@@ -19,11 +20,11 @@ def _snip(ev: dict) -> dict:
 
 
 def write_trace(result: dict, directory: Path | None = None) -> Path:
-    d = directory or TRACE_DIR
+    d = directory or settings().trace_dir
     d.mkdir(parents=True, exist_ok=True)
     name = datetime.now().strftime("%Y%m%d-%H%M%S")
     path = d / f"{name}.json"
-    payload = {
+    payload = redact_obj({
         "question": result.get("question"),
         "rewrite": result.get("rewrite"),
         "subquestions": result.get("subquestions"),
@@ -35,6 +36,6 @@ def write_trace(result: dict, directory: Path | None = None) -> Path:
         "answer": result.get("answer"),
         "source": result.get("source"),
         "repo": result.get("repo"),
-    }
+    })
     path.write_text(json.dumps(payload, indent=2) + "\n")
     return path

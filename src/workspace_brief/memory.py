@@ -3,11 +3,12 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-DEFAULT_PATH = Path(".brief-memory.sqlite")
+from workspace_brief.config import settings
 
 
 def _conn(path: Path | None = None) -> sqlite3.Connection:
-    p = path or DEFAULT_PATH
+    p = path or settings().memory_path
+    p.parent.mkdir(parents=True, exist_ok=True)
     c = sqlite3.connect(p)
     c.row_factory = sqlite3.Row
     c.executescript(

@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "workspace-brief"
-version = "0.1.0"
+version = "0.2.0"
 description = "Ask a live GitHub workspace what changed — with a planner, citations, and a trace."
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 authors = [{ name = "Gyanu Mayank" }]
 dependencies = [
@@ -14,10 +15,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "fastapi"]
+api = ["fastapi", "uvicorn[standard]"]
 
 [project.scripts]
 brief = "workspace_brief.cli:main"
+brief-api = "workspace_brief.api:serve"
 
 [tool.setuptools.packages.find]
 where = ["src"]
