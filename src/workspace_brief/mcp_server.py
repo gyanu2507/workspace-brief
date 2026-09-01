@@ -95,7 +95,7 @@ def handle(msg: dict) -> dict | None:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "workspace-brief", "version": "0.2.0"},
+                "serverInfo": {"name": "workspace-brief", "version": "0.3.0"},
             },
         )
     if method == "notifications/initialized":

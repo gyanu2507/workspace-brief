@@ -9,24 +9,61 @@ pip install -e ".[dev]"
 brief "what changed this quarter and what are the main risks?"
 ```
 
-That hits the checked-in **Northstar** fixture, a fake billing app with a promo 500, a Stripe webhook stampede, and a p95 goal that is blocked on the crash. No API key.
-
-A real GitHub repo:
+That hits the checked-in **Northstar** fixture. No API key. A real GitHub repo:
 
 ```
-brief --source github --repo gyanu2507/advanced-rag "what landed recently?"
+brief --source github --repo owner/name "what landed recently?"
 ```
 
-`GITHUB_TOKEN` is optional; you only need it if you get rate-limited. Transient 429/5xx are retried.
+`GITHUB_TOKEN` is optional until GitHub rate-limits you. Transient 429/5xx are retried. Tokens are stripped from traces and error strings.
 
-stderr prints `trace: traces/<time>.json`. That file has the rewrite, sub-questions, tool calls, evidence snippets, memory, and citations — so you can see why it said what it said. Tokens in traces and error strings are stripped before they hit disk.
+## Share it with other people
 
-## HTTP API
+A local `brief` command is fine on your laptop. A URL other people can hit is not, unless you lock it down.
+
+On any host that runs Docker:
+
+```
+export BRIEF_API_KEY='a long random string'
+export BRIEF_ALLOWED_REPOS='owner/name'
+export GITHUB_TOKEN='ghp_…'          # fine-grained, read those repos only
+export BRIEF_SOURCE=github
+export BRIEF_REPO=owner/name
+export BRIEF_RATE_LIMIT=60
+export BRIEF_TRUST_PROXY=1           # if you sit behind a reverse proxy
+docker compose up --build -d
+```
+
+Then they call:
+
+```
+curl -s "$HOST/brief" \
+  -H "content-type: application/json" \
+  -H "X-API-Key: $BRIEF_API_KEY" \
+  -d '{"question":"what landed recently?"}'
+```
+
+`GET /health` stays open so the host can probe it. `/brief` returns 401 without the key. A repo outside `BRIEF_ALLOWED_REPOS` returns 403. The json `trace` field is a filename, not a filesystem path.
+
+MCP for a desktop client (stdio, same tools):
+
+```json
+{
+  "command": "python",
+  "args": ["-m", "workspace_brief.mcp_server"],
+  "env": {
+    "BRIEF_SOURCE": "github",
+    "BRIEF_REPO": "owner/name",
+    "GITHUB_TOKEN": "ghp_…"
+  }
+}
+```
+
+## HTTP API (local)
 
 ```
 pip install -e ".[api]"
 brief-api
-# or: uvicorn workspace_brief.api:app --host 0.0.0.0 --port 8000
 ```
 
 ```
@@ -35,7 +72,7 @@ curl -s localhost:8000/brief -H 'content-type: application/json' \
   -d '{"question":"what are the main risks?"}'
 ```
 
-`POST /brief` takes `question`, optional `source` (`fixture` | `github`), `repo`, and `session`. Live GitHub without `repo` is a 400.
+`POST /brief` takes `question`, optional `source` (`fixture` | `github`), `repo`, and `session`. If you omit `source` / `repo`, the process defaults (`BRIEF_SOURCE`, `BRIEF_REPO`) are used. Interactive docs: `/docs`.
 
 ## Docker
 
@@ -43,14 +80,14 @@ curl -s localhost:8000/brief -H 'content-type: application/json' \
 docker compose up --build
 ```
 
-The API listens on `:8000`. Memory and traces live in a volume. Copy `.env.example` and export `GITHUB_TOKEN` if you want `--source github` without getting throttled.
+The API listens on `:8000`. Memory and traces live in a volume. The process runs as uid 10001, not root.
 
 ## Memory
 
 `.brief-memory.sqlite` (or `BRIEF_MEMORY_PATH`)
 
 - short-term: last few turns in the session
-- long-term: only if you say `remember that …` (priority project, ignore X, …). Repeating the same fact is a no-op.
+- long-term: only if you say `remember that …`. Repeating the same fact is a no-op.
 
 ## Grounding
 
@@ -60,16 +97,6 @@ Commits are only listed when the question is about what changed — otherwise th
 
 Set `GROQ_API_KEY` or `OPENAI_API_KEY` to rewrite the extractive bullets. The rewrite is thrown away if it drops a citation. Tests never need a key.
 
-## MCP
-
-Same tools over stdio. Speaks MCP `Content-Length` framing; a single JSON line still works for smoke tests.
-
-```
-python -m workspace_brief.mcp_server
-```
-
-`BRIEF_SOURCE=github BRIEF_REPO=owner/name` if you want live GitHub instead of the fixture.
-
 ## Config
 
 | Env | Default | |
@@ -77,6 +104,11 @@ python -m workspace_brief.mcp_server
 | `GITHUB_TOKEN` / `GH_TOKEN` | unset | GitHub auth |
 | `BRIEF_SOURCE` | `fixture` | `fixture` or `github` |
 | `BRIEF_REPO` | unset | `owner/name` |
+| `BRIEF_API_KEY` | unset | if set, `/brief` requires it |
+| `BRIEF_ALLOWED_REPOS` | unset | comma-separated allowlist |
+| `BRIEF_CORS_ORIGINS` | unset | comma-separated, or `*` |
+| `BRIEF_RATE_LIMIT` | `60` | `/brief` per IP per minute; `0` disables |
+| `BRIEF_TRUST_PROXY` | unset | honor `X-Forwarded-For` |
 | `BRIEF_GITHUB_TIMEOUT` | `25` | seconds |
 | `BRIEF_GITHUB_RETRIES` | `3` | 429 / 5xx |
 | `BRIEF_MEMORY_PATH` | `.brief-memory.sqlite` | |
@@ -93,25 +125,4 @@ pytest
 
 15 gold questions on Northstar. A hit means the cited issue/note actually showed up in evidence, not just in the prose.
 
-## Layout
-
-```
-src/workspace_brief/
-  cli.py         argparse entry
-  api.py         FastAPI /health and /brief
-  config.py      env
-  planner.py     keyword splits; no model required
-  retrieve.py    BM25 over fetched records
-  agent.py       plan → tools (cap 8) → cite
-  llm.py         optional rewrite; keeps citations or bails
-  fixture.py     Northstar
-  github.py      issues / pulls / commits, retries
-  redact.py      tokens out of traces and errors
-  memory.py      sqlite
-  trace.py       json dump
-  mcp_server.py  stdio MCP
-fixtures/northstar/
-evals/gold.json
-```
-
-Python 3.11+. MIT.
+Python 3.11+. MIT. See [SECURITY.md](SECURITY.md) if you are putting this on a network.

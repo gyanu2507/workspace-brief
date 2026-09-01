@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+def _csv(name: str) -> tuple[str, ...]:
+    raw = os.environ.get(name) or ""
+    return tuple(x.strip() for x in raw.split(",") if x.strip())
+
+
 @dataclass(frozen=True)
 class Settings:
     github_token: str | None
@@ -18,10 +23,18 @@ class Settings:
     default_repo: str | None
     api_host: str
     api_port: int
+    api_key: str | None
+    allowed_repos: frozenset[str]
+    cors_origins: tuple[str, ...]
+    rate_limit: int
+    trust_proxy: bool
 
 
 def settings() -> Settings:
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
+    api_key = os.environ.get("BRIEF_API_KEY") or None
+    allowed = frozenset(x.lower() for x in _csv("BRIEF_ALLOWED_REPOS"))
+    source = os.environ.get("BRIEF_SOURCE", "fixture")
     return Settings(
         github_token=token,
         github_timeout=float(os.environ.get("BRIEF_GITHUB_TIMEOUT", "25")),
@@ -29,10 +42,15 @@ def settings() -> Settings:
         memory_path=Path(os.environ.get("BRIEF_MEMORY_PATH", ".brief-memory.sqlite")),
         trace_dir=Path(os.environ.get("BRIEF_TRACE_DIR", "traces")),
         log_level=os.environ.get("BRIEF_LOG_LEVEL", "INFO").upper(),
-        default_source=os.environ.get("BRIEF_SOURCE", "fixture"),
+        default_source=source,
         default_repo=os.environ.get("BRIEF_REPO") or None,
         api_host=os.environ.get("BRIEF_API_HOST", "0.0.0.0"),
         api_port=int(os.environ.get("BRIEF_API_PORT", "8000")),
+        api_key=api_key,
+        allowed_repos=allowed,
+        cors_origins=_csv("BRIEF_CORS_ORIGINS"),
+        rate_limit=int(os.environ.get("BRIEF_RATE_LIMIT", "60")),
+        trust_proxy=os.environ.get("BRIEF_TRUST_PROXY", "").lower() in ("1", "true", "yes"),
     )
 
 

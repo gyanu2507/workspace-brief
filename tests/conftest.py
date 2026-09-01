@@ -9,3 +9,8 @@ def _isolate(tmp_path, monkeypatch):
     monkeypatch.delenv("BRIEF_REPO", raising=False)
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.delenv("BRIEF_API_KEY", raising=False)
+    monkeypatch.delenv("BRIEF_ALLOWED_REPOS", raising=False)
+    monkeypatch.delenv("BRIEF_CORS_ORIGINS", raising=False)
+    monkeypatch.delenv("BRIEF_TRUST_PROXY", raising=False)
+    monkeypatch.setenv("BRIEF_RATE_LIMIT", "0")

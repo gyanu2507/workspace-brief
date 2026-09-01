@@ -1,0 +1,42 @@
+[
+  {
+    "number": 14,
+    "title": "Idempotent webhook consumer",
+    "state": "open",
+    "author": "arjun",
+    "updated": "2026-08-14",
+    "body": "Draft. Adds processed_events and bails if stripe event id is already there. Not wired to checkout yet. Depends on #38."
+  },
+  {
+    "number": 12,
+    "title": "Don't 500 on blank promo_code",
+    "state": "open",
+    "author": "meera",
+    "updated": "2026-08-20",
+    "body": "Treat null and \"\" as no code. Adds a test. Does not add caching — that's a follow up for #22."
+  },
+  {
+    "number": 9,
+    "title": "Include refunds in CSV export",
+    "state": "merged",
+    "author": "arjun",
+    "updated": "2026-07-21",
+    "body": "Merged. Closes #29."
+  },
+  {
+    "number": 6,
+    "title": "Checkout timeout 8s -> 3s",
+    "state": "merged",
+    "author": "priya",
+    "updated": "2026-06-18",
+    "body": "We thought this would help p95. It didn't, just made more 504s. Reverted in #7."
+  },
+  {
+    "number": 7,
+    "title": "Revert checkout timeout change",
+    "state": "merged",
+    "author": "priya",
+    "updated": "2026-06-19",
+    "body": "Yep, put the 8s timeout back."
+  }
+]

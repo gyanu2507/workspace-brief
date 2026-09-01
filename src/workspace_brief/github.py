@@ -19,6 +19,10 @@ class GithubError(RuntimeError):
     pass
 
 
+class RepoNotAllowed(GithubError):
+    pass
+
+
 def _headers() -> dict:
     cfg = settings()
     h = {
@@ -37,6 +41,9 @@ def _split_repo(repo: str) -> tuple[str, str]:
     owner, name = repo.split("/", 1)
     if not owner or not name or "/" in name:
         raise GithubError("repo must be owner/name")
+    allowed = settings().allowed_repos
+    if allowed and repo.lower() not in allowed:
+        raise RepoNotAllowed(f"repo not allowed: {repo}")
     return owner, name
 
 

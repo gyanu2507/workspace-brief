@@ -1,6 +1,6 @@
 import httpx
 
-from workspace_brief.github import GithubError, search_issues
+from workspace_brief.github import GithubError, RepoNotAllowed, search_issues
 
 
 class _Resp:
@@ -71,3 +71,12 @@ def test_bad_repo_shape():
         raise AssertionError("expected GithubError")
     except GithubError as e:
         assert "owner/name" in str(e)
+
+
+def test_allowlist_rejects_other_repo(monkeypatch):
+    monkeypatch.setenv("BRIEF_ALLOWED_REPOS", "acme/app")
+    try:
+        search_issues("other/repo", "crash")
+        raise AssertionError("expected RepoNotAllowed")
+    except RepoNotAllowed:
+        pass

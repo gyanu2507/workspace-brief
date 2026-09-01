@@ -6,7 +6,16 @@ from pathlib import Path
 
 from workspace_brief.retrieve import rank
 
-FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "northstar"
+
+def fixture_dir() -> Path:
+    here = Path(__file__).resolve().parent
+    packaged = here / "data" / "northstar"
+    if (packaged / "issues.json").is_file():
+        return packaged
+    return here.parents[1].parent / "fixtures" / "northstar"
+
+
+FIXTURE_DIR = fixture_dir()
 
 
 def _load(name: str):
