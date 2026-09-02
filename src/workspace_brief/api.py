@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import hmac
 import logging
+import sqlite3
 import time
+import uuid
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from threading import Lock
 from typing import Literal
 
@@ -47,21 +50,45 @@ class _RateLimiter:
 limiter = _RateLimiter()
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    cfg = settings()
+    cfg.require_serve()
+    log.info(
+        "listening env=%s source=%s version=%s",
+        cfg.env,
+        cfg.default_source,
+        __version__,
+    )
+    yield
+
+
 def create_app() -> FastAPI:
-    app = FastAPI(
+    application = FastAPI(
         title="workspace-brief",
         version=__version__,
-        description="Ask a live GitHub workspace what changed. Citations only.",
+        description="Ask a live GitHub workspace what changed. Answers cite retrieved records only.",
+        lifespan=lifespan,
     )
     origins = list(settings().cors_origins)
     if origins:
-        app.add_middleware(
+        application.add_middleware(
             CORSMiddleware,
             allow_origins=origins,
+            allow_credentials=True,
             allow_methods=["GET", "POST", "OPTIONS"],
-            allow_headers=["Authorization", "Content-Type", "X-API-Key"],
+            allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Request-Id"],
         )
-    return app
+
+    @application.middleware("http")
+    async def request_context(request: Request, call_next):
+        rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+        response = await call_next(request)
+        response.headers["X-Request-Id"] = rid
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    return application
 
 
 app = create_app()
@@ -70,8 +97,8 @@ app = create_app()
 class BriefIn(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     source: Literal["fixture", "github"] | None = None
-    repo: str | None = None
-    session: str = Field(default="default", max_length=80)
+    repo: str | None = Field(default=None, max_length=200)
+    session: str = Field(default="default", pattern=r"^[A-Za-z0-9._-]{1,80}$")
 
 
 class BriefOut(BaseModel):
@@ -108,7 +135,11 @@ def _require_key(request: Request) -> None:
 def _gate(request: Request) -> None:
     _require_key(request)
     if not limiter.allow(_client_key(request), settings().rate_limit):
-        raise HTTPException(status_code=429, detail="rate limited")
+        raise HTTPException(
+            status_code=429,
+            detail="rate limited",
+            headers={"Retry-After": "60"},
+        )
 
 
 @app.get("/")
@@ -117,6 +148,7 @@ def root():
         "name": "workspace-brief",
         "version": __version__,
         "health": "/health",
+        "ready": "/ready",
         "docs": "/docs",
         "brief": "POST /brief",
     }
@@ -126,6 +158,19 @@ def root():
 def health():
     cfg = settings()
     return {"ok": True, "source": cfg.default_source, "version": __version__}
+
+
+@app.get("/ready")
+def ready():
+    cfg = settings()
+    try:
+        cfg.memory_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(str(cfg.memory_path), timeout=2) as conn:
+            conn.execute("select 1")
+    except sqlite3.Error:
+        log.exception("readiness: memory store")
+        raise HTTPException(status_code=503, detail="memory store unavailable") from None
+    return {"ok": True, "memory": "ok", "version": __version__}
 
 
 @app.post("/brief", response_model=BriefOut)
@@ -151,7 +196,8 @@ def brief(body: BriefIn, request: Request):
         raise HTTPException(status_code=403, detail=str(e)) from None
     except GithubError as e:
         log.warning("github: %s", e)
-        raise HTTPException(status_code=502, detail=str(e)) from None
+        detail = "github upstream error" if cfg.is_production else str(e)
+        raise HTTPException(status_code=502, detail=detail) from None
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from None
     path = write_trace(result, cfg.trace_dir)
@@ -168,6 +214,7 @@ def serve() -> None:
     import uvicorn
 
     cfg = settings()
+    cfg.require_serve()
     uvicorn.run(app, host=cfg.api_host, port=cfg.api_port, proxy_headers=cfg.trust_proxy)
 
 

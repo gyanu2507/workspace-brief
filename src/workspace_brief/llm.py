@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import logging
 import os
 
-import httpx
+log = logging.getLogger(__name__)
 
 GROQ = "https://api.groq.com/openai/v1/chat/completions"
 OPENAI = "https://api.openai.com/v1/chat/completions"
@@ -36,10 +37,16 @@ def maybe_rewrite(question: str, extractive: str, cites: list[str]) -> str | Non
         ],
     }
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-    with httpx.Client(timeout=20) as c:
-        r = c.post(url, json=payload, headers=headers)
-    r.raise_for_status()
-    text = r.json()["choices"][0]["message"]["content"].strip()
+    try:
+        import httpx
+
+        with httpx.Client(timeout=20) as c:
+            r = c.post(url, json=payload, headers=headers)
+        r.raise_for_status()
+        text = r.json()["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        log.warning("rewrite failed: %s", e)
+        return None
     if not text:
         return None
     for c in cites:

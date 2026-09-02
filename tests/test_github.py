@@ -43,7 +43,7 @@ def test_retries_on_503(monkeypatch):
     def factory(**kwargs):
         return _Client(queue)
 
-    monkeypatch.setattr("workspace_brief.github.httpx.Client", factory)
+    monkeypatch.setattr("httpx.Client", factory)
     assert search_issues("acme/app", "crash") == []
     assert queue == []
 
@@ -56,7 +56,7 @@ def test_403_without_retry_after_fails_fast(monkeypatch):
     def factory(**kwargs):
         return _Client(queue)
 
-    monkeypatch.setattr("workspace_brief.github.httpx.Client", factory)
+    monkeypatch.setattr("httpx.Client", factory)
     try:
         search_issues("acme/app", "crash")
         raise AssertionError("expected GithubError")

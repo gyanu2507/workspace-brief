@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from workspace_brief.cli import main
@@ -27,3 +28,13 @@ def test_fixture_run(tmp_path, monkeypatch):
     assert rc == 0
     traces = list((tmp_path / "t").glob("*.json"))
     assert traces
+
+
+def test_json_output(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    rc = main(["--json", "--trace-dir", str(tmp_path / "t"), "empty promo crash"])
+    assert rc == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["source"] == "fixture"
+    assert data["citations"]
+    assert data["trace"]

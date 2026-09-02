@@ -18,5 +18,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install
         run: pip install -e ".[dev,api]"
+      - name: Lint
+        run: ruff check src tests
       - name: Test
         run: pytest

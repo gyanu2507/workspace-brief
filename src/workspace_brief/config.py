@@ -13,6 +13,7 @@ def _csv(name: str) -> tuple[str, ...]:
 
 @dataclass(frozen=True)
 class Settings:
+    env: str
     github_token: str | None
     github_timeout: float
     github_retries: int
@@ -29,13 +30,34 @@ class Settings:
     rate_limit: int
     trust_proxy: bool
 
+    @property
+    def is_production(self) -> bool:
+        return self.env == "production"
+
+    def require_serve(self) -> None:
+        """Refuse to bind an HTTP server that would be an open proxy."""
+        if not self.is_production:
+            return
+        if not self.api_key:
+            raise RuntimeError("BRIEF_API_KEY is required when BRIEF_ENV=production")
+        if len(self.api_key) < 16:
+            raise RuntimeError("BRIEF_API_KEY must be at least 16 characters in production")
+        if self.default_source == "github" and not self.allowed_repos:
+            raise RuntimeError(
+                "BRIEF_ALLOWED_REPOS is required in production when BRIEF_SOURCE=github"
+            )
+
 
 def settings() -> Settings:
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN") or None
     api_key = os.environ.get("BRIEF_API_KEY") or None
     allowed = frozenset(x.lower() for x in _csv("BRIEF_ALLOWED_REPOS"))
     source = os.environ.get("BRIEF_SOURCE", "fixture")
+    env = (os.environ.get("BRIEF_ENV") or "development").lower()
+    if env not in ("development", "production", "test"):
+        env = "development"
     return Settings(
+        env=env,
         github_token=token,
         github_timeout=float(os.environ.get("BRIEF_GITHUB_TIMEOUT", "25")),
         github_retries=int(os.environ.get("BRIEF_GITHUB_RETRIES", "3")),
@@ -57,6 +79,6 @@ def settings() -> Settings:
 def setup_logging(level: str | None = None) -> None:
     logging.basicConfig(
         level=getattr(logging, (level or settings().log_level), logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
         datefmt="%H:%M:%S",
     )

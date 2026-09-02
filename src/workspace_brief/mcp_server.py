@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import sys
 
+from workspace_brief import __version__
 from workspace_brief.config import settings, setup_logging
 from workspace_brief.redact import redact
 from workspace_brief.sources import get_source
@@ -95,7 +96,7 @@ def handle(msg: dict) -> dict | None:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "workspace-brief", "version": "0.3.0"},
+                "serverInfo": {"name": "workspace-brief", "version": __version__},
             },
         )
     if method == "notifications/initialized":

@@ -1,8 +1,10 @@
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
 
+from workspace_brief import __version__
 from workspace_brief.agent import run
 from workspace_brief.config import settings, setup_logging
 from workspace_brief.github import GithubError
@@ -35,6 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(cfg.trace_dir),
         help="where to write the json trace for this run",
     )
+    p.add_argument("--json", action="store_true", help="print answer, citations, and trace as JSON")
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return p
 
 
@@ -60,6 +64,20 @@ def main(argv=None) -> int:
         print(f"brief: {e}", file=sys.stderr)
         return 3
     path = write_trace(result, Path(args.trace_dir))
-    print(result["answer"])
-    print(f"\ntrace: {path}", file=sys.stderr)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "answer": result["answer"],
+                    "citations": result["citations"],
+                    "source": result["source"],
+                    "repo": result.get("repo"),
+                    "trace": path.name,
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(result["answer"])
+        print(f"\ntrace: {path}", file=sys.stderr)
     return 0

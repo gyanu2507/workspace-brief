@@ -14,3 +14,4 @@ def _isolate(tmp_path, monkeypatch):
     monkeypatch.delenv("BRIEF_CORS_ORIGINS", raising=False)
     monkeypatch.delenv("BRIEF_TRUST_PROXY", raising=False)
     monkeypatch.setenv("BRIEF_RATE_LIMIT", "0")
+    monkeypatch.setenv("BRIEF_ENV", "test")

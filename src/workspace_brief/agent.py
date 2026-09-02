@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import logging
 import re
 
+from workspace_brief import memory as mem
 from workspace_brief.planner import plan
 from workspace_brief.redact import redact
 from workspace_brief.retrieve import rank
 from workspace_brief.sources import get_source
-from workspace_brief import memory as mem
+
+log = logging.getLogger(__name__)
 
 MAX_CALLS = 8
 MAX_EVIDENCE = 8
@@ -191,7 +194,7 @@ def run(
         if rewritten:
             answer = rewritten
     except Exception:
-        pass
+        log.exception("llm rewrite skipped")
 
     if known:
         answer += "\n\nUsing long-term notes: " + "; ".join(known)

@@ -9,6 +9,7 @@ def test_no_key_is_a_noop(monkeypatch):
 
 def test_rewrite_dropped_if_it_loses_a_cite(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "fake")
+    import httpx
 
     class FakeResp:
         def raise_for_status(self):
@@ -30,5 +31,5 @@ def test_rewrite_dropped_if_it_loses_a_cite(monkeypatch):
         def post(self, *a, **k):
             return FakeResp()
 
-    monkeypatch.setattr("workspace_brief.llm.httpx.Client", FakeClient)
+    monkeypatch.setattr(httpx, "Client", FakeClient)
     assert maybe_rewrite("q", "- Empty promo [#41]", ["#41"]) is None

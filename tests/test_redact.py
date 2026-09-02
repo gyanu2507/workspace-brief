@@ -34,3 +34,10 @@ def test_trace_redacts_tokens(tmp_path):
     text = path.read_text()
     assert "ghp_" not in text
     assert "***" in text
+
+
+def test_trace_names_are_unique(tmp_path):
+    a = write_trace({"answer": "one", "citations": []}, tmp_path)
+    b = write_trace({"answer": "two", "citations": []}, tmp_path)
+    assert a != b
+    assert a.name != b.name

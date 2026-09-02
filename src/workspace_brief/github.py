@@ -3,8 +3,7 @@ from __future__ import annotations
 import logging
 import time
 
-import httpx
-
+from workspace_brief import __version__
 from workspace_brief.config import settings
 from workspace_brief.redact import redact
 from workspace_brief.retrieve import rank
@@ -27,7 +26,7 @@ def _headers() -> dict:
     cfg = settings()
     h = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "workspace-brief",
+        "User-Agent": f"workspace-brief/{__version__}",
         "X-GitHub-Api-Version": "2022-11-28",
     }
     if cfg.github_token:
@@ -48,6 +47,8 @@ def _split_repo(repo: str) -> tuple[str, str]:
 
 
 def _get(path: str, params: dict | None = None):
+    import httpx
+
     cfg = settings()
     last_err = None
     for attempt in range(max(1, cfg.github_retries)):

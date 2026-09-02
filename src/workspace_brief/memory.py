@@ -9,8 +9,10 @@ from workspace_brief.config import settings
 def _conn(path: Path | None = None) -> sqlite3.Connection:
     p = path or settings().memory_path
     p.parent.mkdir(parents=True, exist_ok=True)
-    c = sqlite3.connect(p)
+    c = sqlite3.connect(p, timeout=5, check_same_thread=False)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("PRAGMA busy_timeout=5000")
     c.executescript(
         """
         create table if not exists turns (

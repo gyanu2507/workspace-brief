@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from workspace_brief.config import settings
@@ -22,7 +23,7 @@ def _snip(ev: dict) -> dict:
 def write_trace(result: dict, directory: Path | None = None) -> Path:
     d = directory or settings().trace_dir
     d.mkdir(parents=True, exist_ok=True)
-    name = datetime.now().strftime("%Y%m%d-%H%M%S")
+    name = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
     path = d / f"{name}.json"
     payload = redact_obj({
         "question": result.get("question"),
