@@ -18,3 +18,12 @@ def test_pull_for_blank_promo():
 
 def test_incident_note():
     assert search_notes("11 august duplicate invoices")[0]["id"] == "note-aug-11-incident"
+
+
+def test_tie_prefers_newer_stamp():
+    items = [
+        {"title": "promo checkout", "body": "old", "updated": "2026-01-01"},
+        {"title": "promo checkout", "body": "new", "updated": "2026-08-20"},
+    ]
+    out = rank("promo checkout", items, n=2)
+    assert [x["body"] for x in out] == ["new", "old"]

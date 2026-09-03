@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 
 from workspace_brief import __version__
@@ -83,6 +84,33 @@ def _get(path: str, params: dict | None = None):
     raise last_err or GithubError("github request failed")
 
 
+_SEARCH_NOISE = re.compile(r"[^\w.#/+ -]+")
+
+
+def _search_q(query: str, qualifier: str) -> str:
+    cleaned = _SEARCH_NOISE.sub(" ", query)
+    cleaned = " ".join(cleaned.split())[:180]
+    if not cleaned:
+        cleaned = "is:open"
+    return f"{cleaned} {qualifier}"
+
+
+def _search_items(query: str, qualifier: str) -> list[dict] | None:
+    """GitHub search hits, or None to fall back to listing the repo."""
+    q = _search_q(query, qualifier)
+    try:
+        raw = _get("/search/issues", params={"q": q, "per_page": 20})
+    except GithubError as e:
+        msg = str(e).lower()
+        if "rate-limited" in msg or "not found" in msg:
+            raise
+        log.warning("github search fallback: %s", e)
+        return None
+    if not isinstance(raw, dict):
+        return None
+    return list(raw.get("items") or [])
+
+
 def _issue_shape(raw: dict) -> dict:
     return {
         "number": raw["number"],
@@ -96,11 +124,24 @@ def _issue_shape(raw: dict) -> dict:
     }
 
 
+def _list_issues(owner: str, name: str) -> list[dict]:
+    raw = _get(f"/repos/{owner}/{name}/issues", params={"state": "all", "per_page": 50})
+    if not isinstance(raw, list):
+        return []
+    return [_issue_shape(x) for x in raw if isinstance(x, dict) and "pull_request" not in x]
+
+
 def search_issues(repo: str, query: str, n: int = 5) -> list:
     owner, name = _split_repo(repo)
-    raw = _get(f"/repos/{owner}/{name}/issues", params={"state": "all", "per_page": 50})
-    items = [_issue_shape(x) for x in raw if "pull_request" not in x]
-    return rank(query, items, n)
+    found = _search_items(query, f"repo:{owner}/{name} is:issue")
+    if found is not None:
+        items = [_issue_shape(x) for x in found if "pull_request" not in x]
+        ranked = rank(query, items, n)
+        if ranked:
+            return ranked
+        if items:
+            return items[:n]
+    return rank(query, _list_issues(owner, name), n)
 
 
 def get_issue(repo: str, number: int) -> dict | None:
@@ -114,23 +155,30 @@ def get_issue(repo: str, number: int) -> dict | None:
     return _issue_shape(raw)
 
 
+def _pull_shape(raw: dict) -> dict:
+    return {
+        "number": raw["number"],
+        "title": raw.get("title") or "",
+        "state": "merged" if raw.get("merged_at") or raw.get("pull_request", {}).get("merged_at") else raw.get("state") or "",
+        "author": (raw.get("user") or {}).get("login"),
+        "updated": (raw.get("updated_at") or "")[:10],
+        "body": raw.get("body") or "",
+        "url": raw.get("html_url"),
+    }
+
+
 def search_pulls(repo: str, query: str, n: int = 5) -> list:
     owner, name = _split_repo(repo)
+    found = _search_items(query, f"repo:{owner}/{name} is:pr")
+    if found is not None:
+        items = [_pull_shape(x) for x in found]
+        ranked = rank(query, items, n)
+        if ranked:
+            return ranked
+        if items:
+            return items[:n]
     raw = _get(f"/repos/{owner}/{name}/pulls", params={"state": "all", "per_page": 50})
-    items = []
-    for x in raw:
-        items.append(
-            {
-                "number": x["number"],
-                "title": x.get("title") or "",
-                "state": "merged" if x.get("merged_at") else x.get("state") or "",
-                "author": (x.get("user") or {}).get("login"),
-                "updated": (x.get("updated_at") or "")[:10],
-                "body": x.get("body") or "",
-                "url": x.get("html_url"),
-            }
-        )
-    return rank(query, items, n)
+    return rank(query, [_pull_shape(x) for x in raw], n)
 
 
 def list_commits(repo: str, n: int = 8) -> list:

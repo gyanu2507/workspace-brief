@@ -69,6 +69,19 @@ def _lookups(sq: str, src) -> list:
     ]
 
 
+_KIND_ORDER = ("Issues", "Pull requests", "Notes", "Commits")
+
+
+def _kind(item: dict) -> str:
+    if item.get("sha"):
+        return "Commits"
+    if item.get("id"):
+        return "Notes"
+    if "labels" in item:
+        return "Issues"
+    return "Pull requests"
+
+
 def synthesize(question: str, evidence: list[dict]) -> tuple[str, list[str]]:
     if not evidence:
         return (
@@ -78,7 +91,7 @@ def synthesize(question: str, evidence: list[dict]) -> tuple[str, list[str]]:
         )
 
     cites = []
-    lines = []
+    groups: dict[str, list[str]] = {k: [] for k in _KIND_ORDER}
     for ev in evidence:
         c = _cite(ev)
         if c not in cites:
@@ -87,15 +100,16 @@ def synthesize(question: str, evidence: list[dict]) -> tuple[str, list[str]]:
         snip = _snippet(ev)
         line = f"- {_label(ev)}{extra} [{c}]"
         if snip:
-            line += f" — {snip}"
-        lines.append(line)
+            line += f": {snip}"
+        groups[_kind(ev)].append(line)
 
-    answer = (
-        f"Based on the workspace, here's what I can ground for: {question}\n\n"
-        + "\n".join(lines)
-        + "\n\nI only used the records above — if something's missing it wasn't retrieved."
-    )
-    return answer, cites
+    used = [k for k in _KIND_ORDER if groups[k]]
+    parts = []
+    for kind in used:
+        if len(used) > 1:
+            parts.append(kind)
+        parts.extend(groups[kind])
+    return "\n".join(parts), cites
 
 
 def _maybe_remember(question: str, session: str, path) -> str | None:
@@ -182,10 +196,13 @@ def run(
     recent = mem.recent_turns(session, path=memory_path)
 
     src = get_source(source, repo)
-    planned = plan(question)
-    raw, calls = _collect(src, question, planned["subquestions"])
+    planned = plan(question, recent_turns=recent, facts=known)
+    raw, calls = _collect(src, planned["rewrite"], planned["subquestions"])
 
-    evidence = rank(question, raw, n=MAX_EVIDENCE) or raw[:MAX_EVIDENCE]
+    rank_q = planned["rewrite"]
+    if known:
+        rank_q = rank_q + " " + " ".join(known)
+    evidence = rank(rank_q, raw, n=MAX_EVIDENCE) or raw[:MAX_EVIDENCE]
     answer, cites = synthesize(question, evidence)
     try:
         from workspace_brief.llm import maybe_rewrite

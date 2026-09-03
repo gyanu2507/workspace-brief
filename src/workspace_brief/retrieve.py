@@ -16,6 +16,10 @@ def blob(item: dict) -> str:
     return " ".join(parts)
 
 
+def _stamp(item: dict) -> str:
+    return str(item.get("updated") or item.get("date") or "")
+
+
 class BM25:
     def __init__(self, docs: list[list[str]], k1: float = 1.5, b: float = 0.75):
         self.k1 = k1
@@ -26,9 +30,7 @@ class BM25:
         df: Counter[str] = Counter()
         for d in docs:
             df.update(set(d))
-        self.idf = {
-            t: math.log((n - f + 0.5) / (f + 0.5) + 1.0) for t, f in df.items()
-        }
+        self.idf = {t: math.log((n - f + 0.5) / (f + 0.5) + 1.0) for t, f in df.items()}
 
     def score(self, query: list[str], i: int) -> float:
         d = self.docs[i]
@@ -49,12 +51,15 @@ class BM25:
 
 
 def rank(query: str, items: list, n: int = 5) -> list:
-    """Score items against query. Zero-overlap rows stay out."""
+    """Score items against query. Zero-overlap rows stay out.
+
+    Equal BM25 scores prefer the newer `updated` / `date` stamp.
+    """
     q = tokens(query)
     if not q or not items:
         return []
     docs = [tokens(blob(it)) for it in items]
     bm = BM25(docs)
-    scored = [(bm.score(q, i), it) for i, it in enumerate(items)]
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [it for s, it in scored if s > 0][:n]
+    scored = [(bm.score(q, i), _stamp(it), it) for i, it in enumerate(items)]
+    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    return [it for s, _d, it in scored if s > 0][:n]

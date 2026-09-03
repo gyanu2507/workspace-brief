@@ -38,7 +38,7 @@ class _Client:
 def test_retries_on_503(monkeypatch):
     monkeypatch.setenv("BRIEF_GITHUB_RETRIES", "3")
     monkeypatch.setattr("workspace_brief.github.time.sleep", lambda *_: None)
-    queue = [_Resp(503), _Resp(503), _Resp(200, [])]
+    queue = [_Resp(503), _Resp(503), _Resp(200, {"items": []}), _Resp(200, [])]
 
     def factory(**kwargs):
         return _Client(queue)
@@ -62,6 +62,34 @@ def test_403_without_retry_after_fails_fast(monkeypatch):
         raise AssertionError("expected GithubError")
     except GithubError as e:
         assert "rate-limited" in str(e)
+    assert queue == []
+
+
+def test_uses_search_api(monkeypatch):
+    recorded = []
+
+    class Tracking(_Client):
+        def get(self, path, params=None):
+            recorded.append((path, params))
+            return self.queue.pop(0)
+
+    item = {
+        "number": 7,
+        "title": "crash in checkout",
+        "state": "open",
+        "labels": [{"name": "bug"}],
+        "user": {"login": "meera"},
+        "updated_at": "2026-08-01T00:00:00Z",
+        "body": "crash on empty promo",
+        "html_url": "https://github.com/acme/app/issues/7",
+    }
+    queue = [_Resp(200, {"items": [item]})]
+    monkeypatch.setattr("httpx.Client", lambda **kwargs: Tracking(queue))
+    hits = search_issues("acme/app", "crash")
+    assert recorded[0][0] == "/search/issues"
+    assert "repo:acme/app" in recorded[0][1]["q"]
+    assert "is:issue" in recorded[0][1]["q"]
+    assert hits[0]["number"] == 7
     assert queue == []
 
 

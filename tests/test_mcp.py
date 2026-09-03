@@ -11,7 +11,7 @@ def test_initialize():
 def test_tools_list():
     r = handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     names = {t["name"] for t in r["result"]["tools"]}
-    assert {"search_issues", "get_issue", "search_pulls", "list_commits", "search_notes"} <= names
+    assert {"brief", "search_issues", "get_issue", "search_pulls", "list_commits", "search_notes"} <= names
 
 
 def test_call_search_issues():
@@ -25,6 +25,21 @@ def test_call_search_issues():
     )
     assert r["result"]["isError"] is False
     assert "#41" in r["result"]["content"][0]["text"] or "41" in r["result"]["content"][0]["text"]
+
+
+def test_call_brief():
+    r = handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {"name": "brief", "arguments": {"question": "empty promo crash"}},
+        }
+    )
+    assert r["result"]["isError"] is False
+    payload = r["result"]["content"][0]["text"]
+    assert "#41" in payload
+    assert "answer" in payload
 
 
 def test_initialized_is_silent():

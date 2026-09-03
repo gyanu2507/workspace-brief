@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "workspace-brief"
-version = "0.4.0"
+version = "0.5.0"
 description = "Ask a live GitHub workspace what changed — with a planner, citations, and a trace."
 readme = "README.md"
 license = { text = "MIT" }

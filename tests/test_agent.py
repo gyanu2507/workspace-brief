@@ -53,3 +53,12 @@ def test_trace_has_path(tmp_path):
     assert data["question"] == "promo 500"
     assert data["citations"]
     assert data["tool_calls"]
+
+
+def test_followup_retrieves_the_promo_pr(tmp_path):
+    db = tmp_path / "mem.sqlite"
+    run("why is checkout returning 500", session="s", memory_path=db)
+    r = run("which PR treats that as missing", session="s", memory_path=db)
+    found = _cited(r)
+    assert "#12" in found
+    assert "checkout" in r["rewrite"].lower()

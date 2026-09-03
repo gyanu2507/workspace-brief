@@ -16,7 +16,9 @@ brief --source github --repo owner/name "what landed recently?"
 brief --json --source github --repo owner/name "what are the open risks?"
 ```
 
-`GITHUB_TOKEN` is optional until GitHub rate-limits you. Transient 429/5xx are retried. Tokens are stripped from traces and error strings.
+`GITHUB_TOKEN` is optional until GitHub rate-limits you. Live issue/PR lookup uses GitHub's search API (`repo:owner/name is:issue`), then falls back to listing recent items if search returns nothing. Transient 429/5xx are retried. Tokens are stripped from traces and error strings.
+
+Follow-ups in the same `--session` (or `session` on `POST /brief`) reuse the last question. `which PR treats that as missing` after a checkout question still finds the promo PR. `remember that …` also feeds retrieval, not only a footer.
 
 ## HTTP API
 
@@ -63,7 +65,7 @@ curl -s "$HOST/brief" \
 
 `GET /health` stays open so the host can probe it. `GET /ready` checks that the memory store is writable. `/brief` returns 401 without the key. A repo outside `BRIEF_ALLOWED_REPOS` returns 403. The JSON `trace` field is a filename, not a filesystem path.
 
-MCP for a desktop client (stdio, same tools):
+MCP for a desktop client (stdio). `brief` is the one-shot tool. The search tools are still there if the client wants to walk the workspace itself:
 
 ```json
 {

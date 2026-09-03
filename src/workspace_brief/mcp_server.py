@@ -13,9 +13,11 @@ import json
 import sys
 
 from workspace_brief import __version__
+from workspace_brief.agent import run
 from workspace_brief.config import settings, setup_logging
 from workspace_brief.redact import redact
 from workspace_brief.sources import get_source
+from workspace_brief.trace import write_trace
 
 
 def _src():
@@ -24,6 +26,18 @@ def _src():
 
 
 TOOLS = [
+    {
+        "name": "brief",
+        "description": "Ask the workspace a question and get a cited brief.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string"},
+                "session": {"type": "string", "description": "Memory session id for follow-ups."},
+            },
+            "required": ["question"],
+        },
+    },
     {
         "name": "search_issues",
         "description": "Search workspace issues by free text.",
@@ -70,6 +84,22 @@ TOOLS = [
 
 def _call(name: str, args: dict):
     src = _src()
+    if name == "brief":
+        cfg = settings()
+        result = run(
+            args["question"],
+            source=cfg.default_source if cfg.default_source in ("fixture", "github") else "fixture",
+            repo=cfg.default_repo,
+            session=str(args.get("session") or "default"),
+        )
+        path = write_trace(result, cfg.trace_dir)
+        return {
+            "answer": result["answer"],
+            "citations": result["citations"],
+            "source": result["source"],
+            "repo": result.get("repo"),
+            "trace": path.name,
+        }
     if name == "search_issues":
         return src.search_issues(args["query"])
     if name == "get_issue":
