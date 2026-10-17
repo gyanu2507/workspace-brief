@@ -13,8 +13,13 @@ def maybe_rewrite(question: str, extractive: str, cites: list[str]) -> str | Non
     """Optional prose pass. Must keep the citation tokens we already chose."""
     groq = os.environ.get("GROQ_API_KEY")
     openai = os.environ.get("OPENAI_API_KEY")
+    base = (os.environ.get("OPENAI_BASE_URL") or "").rstrip("/")
     if groq:
-        url, key, model = GROQ, groq, os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
+        url, key, model = GROQ, groq, os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
+    elif openai and base:
+        # OpenAI-compatible hosts (e.g. Groq) put the key in OPENAI_API_KEY.
+        url = f"{base}/chat/completions"
+        key, model = openai, os.environ.get("OPENAI_MODEL", "openai/gpt-oss-20b")
     elif openai:
         url, key, model = OPENAI, openai, os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
     else:
