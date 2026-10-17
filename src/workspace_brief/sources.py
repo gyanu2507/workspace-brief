@@ -6,7 +6,7 @@ from workspace_brief import github as gh
 
 class FixtureSource:
     kind = "fixture"
-    repo = "northstar"
+    repo = "sample"
 
     def search_issues(self, q, n=5):
         return fixture.search_issues(q, n)

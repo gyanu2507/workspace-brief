@@ -38,7 +38,7 @@ brief-api = "workspace_brief.api:serve"
 where = ["src"]
 
 [tool.setuptools.package-data]
-workspace_brief = ["data/northstar/*.json"]
+workspace_brief = ["data/sample/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

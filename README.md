@@ -1,19 +1,18 @@
 # workspace-brief
 
-Ask a GitHub workspace what changed — issues, PRs, commits, notes — and get an answer that cites the records it retrieved.
+Ask **any** GitHub repository what changed — issues, PRs, commits, notes — and get an answer that cites the records it retrieved.
 
-This is the live-data half of the pair. Static document Q&A lives in [advanced-rag](https://github.com/gyanu2507/advanced-rag). This repo is a planner, a tool loop, BM25 over the hits, session memory, and a JSON trace of the path.
+Works against a live `owner/name` repo (GitHub API) or a bundled offline **sample** workspace for demos and tests. Architecture: planner, tool loop, BM25 over hits, session memory, JSON execution traces. Static document Q&A is a separate project (`corpus-brief`).
 
 ```
 pip install -e ".[dev]"
-brief "what changed this quarter and what are the main risks?"
-```
 
-That uses the checked-in **Northstar** fixture. No API key. Against a real repo:
-
-```
+# any public (or token-accessible) repo
 brief --source github --repo owner/name "what landed recently?"
 brief --json --source github --repo owner/name "what are the open risks?"
+
+# offline sample workspace (no API key)
+brief --source fixture "what changed this quarter and what are the main risks?"
 ```
 
 `GITHUB_TOKEN` is optional until GitHub rate-limits you. Live issue/PR lookup uses GitHub's search API (`repo:owner/name is:issue`), then falls back to listing recent items if search returns nothing. Transient 429/5xx are retried. Tokens are stripped from traces and error strings.
@@ -130,6 +129,6 @@ Set `GROQ_API_KEY` or `OPENAI_API_KEY` to rewrite the extractive bullets. The re
 pytest
 ```
 
-15 gold questions on Northstar. A hit means the cited issue/note actually showed up in evidence, not just in the prose.
+Gold questions run against the bundled sample workspace. A hit means the cited issue/note actually showed up in evidence, not just in the prose.
 
 Python 3.11+. MIT. See [SECURITY.md](SECURITY.md) before putting this on a network.

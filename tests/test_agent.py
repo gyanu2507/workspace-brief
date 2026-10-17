@@ -41,9 +41,9 @@ def test_gold_hit_rate(tmp_path):
 
 def test_remember_roundtrip(tmp_path):
     db = tmp_path / "mem.sqlite"
-    run("remember that northstar is the priority", session="a", memory_path=db)
+    run("remember that checkout is the priority", session="a", memory_path=db)
     r = run("what are the risks?", session="a", memory_path=db)
-    assert any("northstar is the priority" in f for f in r["memory_used"])
+    assert any("checkout is the priority" in f for f in r["memory_used"])
 
 
 def test_trace_has_path(tmp_path):

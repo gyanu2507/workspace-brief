@@ -9,10 +9,10 @@ from workspace_brief.retrieve import rank
 
 def fixture_dir() -> Path:
     here = Path(__file__).resolve().parent
-    packaged = here / "data" / "northstar"
+    packaged = here / "data" / "sample"
     if (packaged / "issues.json").is_file():
         return packaged
-    return here.parents[1].parent / "fixtures" / "northstar"
+    return here.parents[1].parent / "fixtures" / "sample"
 
 
 FIXTURE_DIR = fixture_dir()

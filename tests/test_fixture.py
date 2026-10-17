@@ -24,6 +24,6 @@ def test_incident_note():
 
 
 def test_fixture_files_present():
-    root = Path(__file__).resolve().parents[1] / "fixtures" / "northstar"
+    root = Path(__file__).resolve().parents[1] / "fixtures" / "sample"
     for name in ("issues.json", "pulls.json", "commits.json", "notes.json"):
         assert (root / name).exists()
